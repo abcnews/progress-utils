@@ -1,6 +1,6 @@
 {
   "name": "@abcnews/progress-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Use #progress{...} mount points as a source of scrollytelling state",
   "license": "MIT",
   "author": "Australian Broadcasting Corporation",
