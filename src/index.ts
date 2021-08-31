@@ -2,6 +2,7 @@ import acto from '@abcnews/alternating-case-to-object';
 import { getMountValue, selectMounts } from '@abcnews/mount-utils';
 import { Mount } from '@abcnews/mount-utils';
 import { StateRecord, State, Progress, Message, Subscriber, LinearScale, Group, Config } from './types';
+export * from './types';
 
 const TRACKING_VERTICAL_MARGIN_PX = 400;
 const VALID_MOUNTS_SELECTOR_PATTERN = /^[a-z]([a-z0-9]+)?([A-Z]+[a-z0-9]+)?$/;
