@@ -268,8 +268,11 @@ function update(group: Group, isInitial?: boolean) {
   }
 
   let state: State = null;
+  const mountsOrderedVerticalAscending = [...(isInitial ? mounts : trackedMounts.values())].sort(
+    (a, b) => mounts.indexOf(b) - mounts.indexOf(a)
+  );
 
-  for (const mount of isInitial ? mounts : [...trackedMounts.values()].reverse()) {
+  for (const mount of mountsOrderedVerticalAscending) {
     const { top } = mount.getBoundingClientRect();
 
     if (top < measurements.regionThresholdPx) {
