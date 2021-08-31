@@ -1,0 +1,64 @@
+{
+  "name": "@abcnews/progress-utils",
+  "version": "1.0.0-pre",
+  "description": "Use #progress{...} mount points as a source of scrollytelling state",
+  "license": "MIT",
+  "author": "Australian Broadcasting Corporation",
+  "contributors": [
+    "Colin Gourlay <Gourlay.Colin@abc.net.au>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abcnews/progress-utils.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abcnews/progress-utils/issues"
+  },
+  "main": "dist/index.js",
+  "module": "dist/progress-utils.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "tsdx watch",
+    "build": "tsdx build",
+    "lint": "tsdx lint src",
+    "example": "npm run build && rollup -c",
+    "prepublishOnly": "npm run build",
+    "release": "np",
+    "test": "tsdx test --passWithNoTests"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "tsdx lint src"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "browserslist": "> 1.5%",
+  "devDependencies": {
+    "@babel/core": "^7.12.3",
+    "@babel/preset-env": "^7.12.1",
+    "@types/jest": "^26.0.15",
+    "husky": "^4.3.0",
+    "np": "^7.0.0",
+    "npm": "^7.2.0",
+    "rollup": "^2.33.2",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-css-only": "^3.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-serve": "^1.1.0",
+    "rollup-plugin-svelte": "^7.1.0",
+    "svelte": "^3.42.3",
+    "tsdx": "^0.14.1",
+    "tslib": "^2.3.1",
+    "typescript": "^3.9.2"
+  },
+  "dependencies": {
+    "@abcnews/alternating-case-to-object": "^3.0.2",
+    "@abcnews/mount-utils": "^2.0.0"
+  }
+}
