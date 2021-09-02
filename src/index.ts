@@ -1,12 +1,17 @@
 import acto from '@abcnews/alternating-case-to-object';
-import { getMountValue, selectMounts } from '@abcnews/mount-utils';
-import { Mount } from '@abcnews/mount-utils';
 import { StateRecord, State, Progress, Message, Subscriber, LinearScale, Group, Config } from './types';
+
 export * from './types';
 
 const TRACKING_VERTICAL_MARGIN_PX = 400;
-const VALID_MOUNTS_SELECTOR_PATTERN = /^[a-z]([a-z0-9]+)?([A-Z]+[a-z0-9]+)?$/;
-const DEFAULT_CONFIG: Partial<Config> = {
+const DEFAULT_CONFIG: Config = {
+  indicatorSelector: (name: string) => `[data-mount][id^="progressNAME${name}"]`,
+  indicatorStateParser: (indicator: Element) => {
+    const { name, ...stateRecord } = acto(indicator.getAttribute('id') || '') || {};
+
+    return stateRecord as StateRecord;
+  },
+  indicatorStateHasher: (state: StateRecord) => JSON.stringify(state),
   regionTop: 0,
   regionBottom: 1,
   regionThreshold: 0.5,
@@ -20,14 +25,14 @@ const trackingObserver: IntersectionObserver | null =
     ? new IntersectionObserver(
         (entries, _observer) => {
           entries.forEach(entry => {
-            const mount = entry.target as Mount;
+            const indicator = entry.target as Element;
 
             for (const group of groups.values()) {
-              if (group.mounts.indexOf(mount) > -1) {
+              if (group.indicators.indexOf(indicator) > -1) {
                 if (entry.isIntersecting) {
-                  group.trackedMounts.add(mount);
+                  group.trackedIndicators.add(indicator);
                 } else {
-                  group.trackedMounts.delete(mount);
+                  group.trackedIndicators.delete(indicator);
                 }
               }
             }
@@ -80,19 +85,35 @@ function setState(name: string, state: State) {
   }
 }
 
-export function getMountsSelector(name: string) {
-  return `progressNAME${name}`;
-}
-
-export function selectProgressPoints(name: string, selector?: string) {
-  return selectMounts(selector || getMountsSelector(name), { markAsUsed: false });
+function getIndicators(name: string, indicatorSelector: string | ((name: string) => string)) {
+  return Array.from(
+    document.querySelectorAll(typeof indicatorSelector === 'function' ? indicatorSelector(name) : indicatorSelector)
+  );
 }
 
 function validateConfig(config: Partial<Config>): asserts config is Config {
-  const { mountsSelector, regionTop, regionBottom, regionThreshold } = config;
+  const {
+    indicatorSelector,
+    indicatorStateParser,
+    indicatorStateHasher,
+    regionTop,
+    regionBottom,
+    regionThreshold
+  } = config;
 
-  if (typeof mountsSelector !== 'string' || !VALID_MOUNTS_SELECTOR_PATTERN.test(mountsSelector)) {
-    throw new Error('mountsSelector should be a valid mount prefix');
+  if (
+    (typeof indicatorSelector !== 'string' && typeof indicatorSelector !== 'function') ||
+    (typeof indicatorSelector === 'function' && typeof indicatorSelector('test') !== 'string')
+  ) {
+    throw new Error('indicatorSelector should be a string, or a function that returns a string');
+  }
+
+  if (typeof indicatorStateParser !== 'function') {
+    throw new Error('indicatorStateParser should be a function');
+  }
+
+  if (typeof indicatorStateHasher !== 'function' || typeof indicatorStateHasher({}) !== 'string') {
+    throw new Error('indicatorStateHasher should be a function that takes a state object and returns a string');
   }
 
   if (typeof regionTop !== 'number' || typeof regionBottom !== 'number' || typeof regionThreshold !== 'number') {
@@ -111,36 +132,35 @@ function validateConfig(config: Partial<Config>): asserts config is Config {
 function register(name: string, options?: Partial<Config>): Group {
   const config = {
     ...DEFAULT_CONFIG,
-    mountsSelector: getMountsSelector(name),
     ...(options || {})
   };
 
   validateConfig(config);
 
-  const mounts = selectProgressPoints(name, config.mountsSelector);
+  const { indicatorSelector, indicatorStateParser, indicatorStateHasher } = config;
+  const indicators = getIndicators(name, indicatorSelector);
   const states = new Set<State>();
-  const mountsStates = new Map<Mount, State>();
+  const indicatorsStates = new Map<Element, State>();
 
-  mounts.forEach((mount, index) => {
-    const value = getMountValue(mount);
-    const { name: _name, ...stateRecord } = acto(value) as StateRecord;
+  indicators.forEach((indicator, index) => {
+    const stateRecord = indicatorStateParser(indicator);
     const state: State = {
-      _hash: value.split(config.mountsSelector as string)[1],
+      _hash: indicatorStateHasher(stateRecord),
       _index: index,
       ...stateRecord
     };
 
     states.add(state);
-    mountsStates.set(mount, state);
+    indicatorsStates.set(indicator, state);
   });
 
   const group: Group = {
     name,
     config,
-    mounts,
-    trackedMounts: new Set(),
+    indicators,
+    trackedIndicators: new Set(),
     states,
-    mountsStates,
+    indicatorsStates,
     currentState: null,
     subscribers: new Set(),
     measurements: null,
@@ -150,11 +170,11 @@ function register(name: string, options?: Partial<Config>): Group {
   groups.set(name, group);
 
   if (trackingObserver !== null) {
-    mounts.forEach(mount => {
-      trackingObserver.observe(mount);
+    indicators.forEach(indicator => {
+      trackingObserver.observe(indicator);
     });
   } else {
-    group.mounts.forEach(mount => group.trackedMounts.add(mount));
+    group.indicators.forEach(indicator => group.trackedIndicators.add(indicator));
   }
 
   return group;
@@ -179,40 +199,44 @@ export function subscribe(name: string, subscriber: Subscriber, options?: Partia
 }
 
 function measure(group: Group) {
-  const { config, mounts } = group;
+  const { config, indicators } = group;
   const { regionTop, regionBottom, regionThreshold, shouldClampProgress } = config;
 
   let regionTopPx = Math.round(regionTop * windowInnerHeight);
   let regionBottomPx = Math.round(regionBottom * windowInnerHeight);
   let regionThresholdPx = Math.round(regionThreshold * windowInnerHeight);
 
-  const mountsDOMRects = new Map<Mount, DOMRect>();
+  const indicatorsDOMRects = new Map<Element, DOMRect>();
 
-  function measureMountDomRect(mount: Mount) {
-    if (!mountsDOMRects.has(mount)) {
-      mountsDOMRects.set(mount, mount.getBoundingClientRect());
+  function measureIndicatorDOMRect(indicator: Element) {
+    if (!indicatorsDOMRects.has(indicator)) {
+      indicatorsDOMRects.set(indicator, indicator.getBoundingClientRect());
     }
   }
 
-  const firstMount = mounts[0];
-  const lastMount = mounts[mounts.length - 1];
+  const topIndicator = indicators[0];
+  const bottomIndicator = indicators[indicators.length - 1];
 
-  measureMountDomRect(firstMount);
-  measureMountDomRect(lastMount);
+  measureIndicatorDOMRect(topIndicator);
+  measureIndicatorDOMRect(bottomIndicator);
 
-  const firstMountDOMRect = mountsDOMRects.get(firstMount) as DOMRect;
-  const lastMountDOMRect = mountsDOMRects.get(lastMount) as DOMRect;
-  const mountsRangePx = lastMountDOMRect.bottom - firstMountDOMRect.top;
+  const topIndicatorDOMRect = indicatorsDOMRects.get(topIndicator) as DOMRect;
+  const bottomIndicatorDOMRect = indicatorsDOMRects.get(bottomIndicator) as DOMRect;
+  const indicatorsRangePx = bottomIndicatorDOMRect.bottom - topIndicatorDOMRect.top;
 
   group.measurements = {
-    mountsRangePx,
+    indicatorsRangePx,
     regionTopPx,
     regionBottomPx,
     regionThresholdPx
   };
   group.scales = {
-    region: createLinearScale([regionBottomPx, regionTopPx - mountsRangePx], [0, 1], shouldClampProgress),
-    threshold: createLinearScale([regionThresholdPx, regionThresholdPx - mountsRangePx], [0, 1], shouldClampProgress)
+    region: createLinearScale([regionBottomPx, regionTopPx - indicatorsRangePx], [0, 1], shouldClampProgress),
+    threshold: createLinearScale(
+      [regionThresholdPx, regionThresholdPx - indicatorsRangePx],
+      [0, 1],
+      shouldClampProgress
+    )
   };
 }
 
@@ -227,7 +251,7 @@ function measureSome(condition: (group: Group) => boolean) {
 }
 
 function measureAllTracked() {
-  measureSome(group => group.trackedMounts.size > 0);
+  measureSome(group => group.trackedIndicators.size > 0);
 }
 
 function measureAll() {
@@ -235,25 +259,34 @@ function measureAll() {
 }
 
 function update(group: Group, isInitial?: boolean) {
-  const { currentState, measurements, mounts, mountsStates, name, scales, subscribers, trackedMounts } = group;
+  const {
+    currentState,
+    measurements,
+    indicators,
+    indicatorsStates,
+    name,
+    scales,
+    subscribers,
+    trackedIndicators
+  } = group;
 
   if (!measurements || !scales) {
     return;
   }
 
-  const mountsDOMRects = new Map<Mount, DOMRect>();
+  const indicatorsDOMRects = new Map<Element, DOMRect>();
 
-  function measureMountDomRect(mount: Mount) {
-    if (!mountsDOMRects.has(mount)) {
-      mountsDOMRects.set(mount, mount.getBoundingClientRect());
+  function measureIndicatorDOMRect(indicator: Element) {
+    if (!indicatorsDOMRects.has(indicator)) {
+      indicatorsDOMRects.set(indicator, indicator.getBoundingClientRect());
     }
   }
 
-  const firstMount = mounts[0];
+  const topIndicator = indicators[0];
 
-  measureMountDomRect(firstMount);
+  measureIndicatorDOMRect(topIndicator);
 
-  const { top } = mountsDOMRects.get(firstMount) as DOMRect;
+  const { top } = indicatorsDOMRects.get(topIndicator) as DOMRect;
   const region = scales.region(top);
   const threshold = scales.threshold(top);
 
@@ -268,15 +301,15 @@ function update(group: Group, isInitial?: boolean) {
   }
 
   let state: State = null;
-  const mountsOrderedVerticalAscending = [...(isInitial ? mounts : trackedMounts.values())].sort(
-    (a, b) => mounts.indexOf(b) - mounts.indexOf(a)
+  const indicatorsOrderedBottomToTop = [...(isInitial ? indicators : trackedIndicators.values())].sort(
+    (a, b) => indicators.indexOf(b) - indicators.indexOf(a)
   );
 
-  for (const mount of mountsOrderedVerticalAscending) {
-    const { top } = mount.getBoundingClientRect();
+  for (const indicator of indicatorsOrderedBottomToTop) {
+    const { top } = indicator.getBoundingClientRect();
 
     if (top < measurements.regionThresholdPx) {
-      state = mountsStates.get(mount) as State;
+      state = indicatorsStates.get(indicator) as State;
       break;
     }
   }
@@ -295,7 +328,7 @@ function updateSome(condition: (group: Group) => boolean) {
 }
 
 function updateAllTracked() {
-  updateSome(group => group.trackedMounts.size > 0);
+  updateSome(group => group.trackedIndicators.size > 0);
 }
 
 function updateAll() {

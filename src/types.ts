@@ -1,7 +1,7 @@
-import { Mount } from '@abcnews/mount-utils';
-
 export type Config = {
-  mountsSelector: string;
+  indicatorSelector: string | ((name: string) => string);
+  indicatorStateParser: (indicator: Element) => StateRecord;
+  indicatorStateHasher: (state: StateRecord) => string;
   regionTop: number;
   regionBottom: number;
   regionThreshold: number;
@@ -37,7 +37,7 @@ export type Message =
 export type Subscriber = (message: Message) => void;
 
 export type Measurements = {
-  mountsRangePx: number;
+  indicatorsRangePx: number;
   regionTopPx: number;
   regionBottomPx: number;
   regionThresholdPx: number;
@@ -53,12 +53,12 @@ export type Scales = {
 export type Group = {
   name: string;
   config: Config;
-  mounts: Mount[];
-  trackedMounts: Set<Mount>;
+  indicators: Element[];
+  trackedIndicators: Set<Element>;
   measurements: Measurements;
   scales: Scales;
   states: Set<State>;
-  mountsStates: Map<Mount, State>;
+  indicatorsStates: Map<Element, State>;
   currentState: State;
   subscribers: Set<Subscriber>;
 };
