@@ -18,6 +18,7 @@ const DEFAULT_CONFIG: Config = {
   shouldClampProgress: true,
   shouldOptimiseIndicatorTracking: true
 };
+const NOOP = () => {};
 
 const groups = new Map<string, Group>();
 
@@ -118,7 +119,7 @@ function validateConfig(config: Partial<Config>): asserts config is Config {
   }
 }
 
-function register(name: string, options?: Partial<Config>): Group {
+function register(name: string, options?: Partial<Config>): Group | null {
   const config = {
     ...DEFAULT_CONFIG,
     ...(options || {})
@@ -128,6 +129,13 @@ function register(name: string, options?: Partial<Config>): Group {
 
   const { indicatorSelector, indicatorStateParser, indicatorStateHasher, shouldOptimiseIndicatorTracking } = config;
   const indicators = getIndicators(name, indicatorSelector);
+
+  if (indicators.length === 0) {
+    console.warn(`Cannot register group "${name}" as no indicators were found in the page`);
+
+    return null;
+  }
+
   const states = new Set<State>();
   const indicatorsStates = new Map<Element, State>();
 
@@ -172,6 +180,10 @@ function register(name: string, options?: Partial<Config>): Group {
 export function subscribe(name: string, subscriber: Subscriber, options?: Partial<Config>): () => void {
   if (!groups.has(name)) {
     const group = register(name, options);
+
+    if (group === null) {
+      return NOOP;
+    }
 
     window.requestAnimationFrame(() => {
       measure(group);
