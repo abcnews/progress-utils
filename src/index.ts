@@ -60,29 +60,17 @@ function createLinearScale(domain: [number, number], range: [number, number], cl
   };
 }
 
-function getHash(state: State) {
-  return state === null ? null : state._hash;
-}
-
 function setState(name: string, state: State) {
-  if (!groups.has(name)) {
-    return;
-  }
-
   const group = groups.get(name);
 
   if (!group || (state !== null && !group.states.has(state))) {
     return;
   }
 
-  const previousHash = getHash(group.currentState);
-
   group.currentState = state;
 
-  if (previousHash !== getHash(group.currentState)) {
-    for (const subscriber of group.subscribers) {
-      subscriber({ type: 'state', data: group.currentState });
-    }
+  for (const subscriber of group.subscribers) {
+    subscriber({ type: 'state', data: group.currentState });
   }
 }
 
