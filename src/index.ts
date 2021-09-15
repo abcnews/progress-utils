@@ -15,7 +15,8 @@ const DEFAULT_CONFIG: Config = {
   regionTop: 0,
   regionBottom: 1,
   regionThreshold: 0.5,
-  shouldClampProgress: true
+  shouldClampProgress: true,
+  shouldOptimiseIndicatorTracking: true
 };
 
 const groups = new Map<string, Group>();
@@ -137,7 +138,7 @@ function register(name: string, options?: Partial<Config>): Group {
 
   validateConfig(config);
 
-  const { indicatorSelector, indicatorStateParser, indicatorStateHasher } = config;
+  const { indicatorSelector, indicatorStateParser, indicatorStateHasher, shouldOptimiseIndicatorTracking } = config;
   const indicators = getIndicators(name, indicatorSelector);
   const states = new Set<State>();
   const indicatorsStates = new Map<Element, State>();
@@ -169,7 +170,7 @@ function register(name: string, options?: Partial<Config>): Group {
 
   groups.set(name, group);
 
-  if (trackingObserver !== null) {
+  if (shouldOptimiseIndicatorTracking && trackingObserver !== null) {
     indicators.forEach(indicator => {
       trackingObserver.observe(indicator);
     });

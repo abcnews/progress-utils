@@ -6,6 +6,7 @@ export type Config = {
   regionBottom: number;
   regionThreshold: number;
   shouldClampProgress: boolean;
+  shouldOptimiseIndicatorTracking: boolean;
 };
 
 export type Value = boolean | number | string | boolean[] | number[] | string[];
