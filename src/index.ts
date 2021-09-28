@@ -28,8 +28,9 @@ const trackingObserver: IntersectionObserver | null =
         (entries, _observer) => {
           entries.forEach(entry => {
             const indicator = entry.target as Element;
+            const trackedGroups = [...groups.values()].filter(group => group.config.shouldOptimiseIndicatorTracking);
 
-            for (const group of groups.values()) {
+            for (const group of trackedGroups) {
               if (group.indicators.indexOf(indicator) > -1) {
                 if (entry.isIntersecting) {
                   group.trackedIndicators.add(indicator);
@@ -167,11 +168,9 @@ function register(name: string, options?: Partial<Config>): Group | null {
   groups.set(name, group);
 
   if (shouldOptimiseIndicatorTracking && trackingObserver !== null) {
-    indicators.forEach(indicator => {
-      trackingObserver.observe(indicator);
-    });
+    indicators.forEach(indicator => trackingObserver.observe(indicator));
   } else {
-    group.indicators.forEach(indicator => group.trackedIndicators.add(indicator));
+    indicators.forEach(indicator => group.trackedIndicators.add(indicator));
   }
 
   return group;
