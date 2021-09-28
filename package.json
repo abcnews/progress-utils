@@ -1,6 +1,6 @@
 {
   "name": "@abcnews/progress-utils",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Use any vertically distributed elements as source of scrollytelling state",
   "license": "MIT",
   "author": "Australian Broadcasting Corporation",
