@@ -21,6 +21,7 @@ export type State =
   | null;
 
 export type Progress = {
+  envelope: number;
   region: number;
   threshold: number;
 };
@@ -39,6 +40,7 @@ export type Subscriber = (message: Message) => void;
 
 export type Measurements = {
   indicatorsRangePx: number;
+  regionRangePx: number;
   regionTopPx: number;
   regionBottomPx: number;
   regionThresholdPx: number;
@@ -47,6 +49,7 @@ export type Measurements = {
 export type LinearScale = (value: number) => number;
 
 export type Scales = {
+  envelope: LinearScale;
   region: LinearScale;
   threshold: LinearScale;
 } | null;

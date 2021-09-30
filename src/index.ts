@@ -202,9 +202,10 @@ function measure(group: Group) {
   const { config, indicators } = group;
   const { regionTop, regionBottom, regionThreshold, shouldClampProgress } = config;
 
-  let regionTopPx = Math.round(regionTop * windowInnerHeight);
-  let regionBottomPx = Math.round(regionBottom * windowInnerHeight);
-  let regionThresholdPx = Math.round(regionThreshold * windowInnerHeight);
+  const regionTopPx = Math.round(regionTop * windowInnerHeight);
+  const regionBottomPx = Math.round(regionBottom * windowInnerHeight);
+  const regionThresholdPx = Math.round(regionThreshold * windowInnerHeight);
+  const regionRangePx = regionBottomPx - regionTopPx;
 
   const indicatorsDOMRects = new Map<Element, DOMRect>();
 
@@ -226,11 +227,19 @@ function measure(group: Group) {
 
   group.measurements = {
     indicatorsRangePx,
+    regionRangePx,
     regionTopPx,
     regionBottomPx,
     regionThresholdPx
   };
   group.scales = {
+    envelope: createLinearScale(
+      regionRangePx > indicatorsRangePx
+        ? [regionBottomPx - indicatorsRangePx, regionTopPx]
+        : [regionTopPx, regionBottomPx - indicatorsRangePx],
+      [0, 1],
+      shouldClampProgress
+    ),
     region: createLinearScale([regionBottomPx, regionTopPx - indicatorsRangePx], [0, 1], shouldClampProgress),
     threshold: createLinearScale(
       [regionThresholdPx, regionThresholdPx - indicatorsRangePx],
@@ -287,6 +296,7 @@ function update(group: Group, isInitial?: boolean) {
   measureIndicatorDOMRect(topIndicator);
 
   const { top } = indicatorsDOMRects.get(topIndicator) as DOMRect;
+  const envelope = scales.envelope(top);
   const region = scales.region(top);
   const threshold = scales.threshold(top);
 
@@ -294,6 +304,7 @@ function update(group: Group, isInitial?: boolean) {
     subscriber({
       type: 'progress',
       data: {
+        envelope,
         region,
         threshold
       }
