@@ -250,7 +250,14 @@ function measure(group: Group) {
 }
 
 function measureSome(condition: (group: Group) => boolean) {
-  windowInnerHeight = window.innerHeight;
+  const heights = [window.innerHeight];
+
+  if (window.screen?.height) {
+    heights.push(window.screen?.height);
+  }
+
+  const actualInnerHeight = Math.min(...heights);
+  windowInnerHeight = actualInnerHeight;
 
   for (const group of groups.values()) {
     if (condition(group)) {
